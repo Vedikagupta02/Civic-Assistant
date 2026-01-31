@@ -8,9 +8,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSpeechRecognition, useSpeechSynthesis } from "react-speech-kit";
+// import { useSpeechRecognition, useSpeechSynthesis } from "react-speech-kit";
 
-// Indian languages supported
+// Mock implementations since react-speech-kit is causing dependency conflicts
+const useSpeechRecognition = ({ onResult }: { onResult: (result: string) => void }) => {
+  return {
+    listen: () => console.log('Speech recognition not available'),
+    stop: () => console.log('Speech recognition stopped'),
+    listening: false,
+    supported: false,
+  };
+};
+
+const useSpeechSynthesis = () => {
+  return {
+    speak: () => console.log('Speech synthesis not available'),
+    cancel: () => console.log('Speech synthesis cancelled'),
+    speaking: false,
+    supported: false,
+  };
+};
 const INDIAN_LANGUAGES = [
   { code: 'en-IN', name: 'English (India)', voice: 'English (India)' },
   { code: 'hi-IN', name: 'हिन्दी (Hindi)', voice: 'Hindi' },
