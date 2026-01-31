@@ -19,6 +19,8 @@ Nagrik Seva is a civic assistant web application that helps Delhi residents repo
 - **Database:** Firebase Firestore
 - **Authentication:** Firebase Auth (Google + Phone OTP)
 
+In development, the Express server starts Vite and serves both the API and the frontend from a single URL.
+
 ### External Services
 - **Firebase:** Authentication, Database, Storage
 - **Maps:** OpenStreetMap (free)
@@ -34,16 +36,12 @@ Nagrik Seva is a civic assistant web application that helps Delhi residents repo
 
 ### Environment Variables
 
-#### Frontend (.env)
-```env
-VITE_FIREBASE_API_KEY=your_firebase_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
-```
+#### Firebase configuration
+Firebase client configuration is currently stored directly in:
+
+- `client/src/lib/firebase.ts`
+
+If you want to run the app using your own Firebase project, replace the config values in that file.
 
 #### Backend (.env)
 ```env
@@ -125,7 +123,12 @@ service cloud.firestore {
     match /issues/{issueId} {
       allow read: if true;
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      // Demo-friendly rule:
+      // The Admin/Worker dashboards are role-based in the UI (not Firebase custom claims).
+      // To allow assignment and resolution updates in demo mode, permit any signed-in user to update.
+      // For production, tighten this rule using Firebase Custom Claims / server-side validation.
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
   }
 }
@@ -174,31 +177,28 @@ cd Civic-Assistant
 
 ### 2. Install Dependencies
 ```bash
-# Install frontend dependencies
 npm install
-
-# Install backend dependencies (if separate)
-cd server && npm install
 ```
 
 ### 3. Environment Setup
 ```bash
-# Copy environment templates
-cp .env.example .env
-
-# Edit .env with your Firebase configuration
-# Add your Firebase API keys and project details
+# Optional: set PORT if you need a non-default port
+# (default is 5000)
 ```
 
 ### 4. Start Development Server
 ```bash
-# Start both frontend and backend
+# Starts the Express server which also serves the Vite frontend
 npm run dev
 
-# Or start individually
-npm run dev:client  # Frontend on http://localhost:5173
-npm run dev:server  # Backend on http://localhost:5000
+# Optional (for troubleshooting)
+npm run dev:client  # Vite-only frontend on http://localhost:5173
+npm run dev:server  # API + frontend on http://localhost:5000
 ```
+
+Open:
+
+- `http://localhost:5000/`
 
 ## 🏛️ Core Features
 
@@ -219,6 +219,16 @@ npm run dev:server  # Backend on http://localhost:5000
 - **Status Updates:** Track issue resolution progress
 - **Area Overview:** Public heatmap of civic issues
 - **Anonymous Public Views:** Aggregated data without personal info
+
+### 4. Community & Role-Based Workflow (Additions)
+- **Community Forum:** Area-based posts, comments, and upvotes (stored in localStorage)
+- **Admin Dashboard:** Monitor issues, filter, and assign workers
+- **Worker Dashboard:** View assigned issues, simulate location updates, and submit resolution
+
+Role override (testing):
+
+- `http://localhost:5000/admin?role=admin`
+- `http://localhost:5000/worker?role=worker`
 
 ### 4. Smart Features
 - **Actionable Guidance:** Step-by-step instructions for each issue type

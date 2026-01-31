@@ -1,21 +1,17 @@
-# Quick Setup Guide
+# Civic-Assistant (Nagrik Seva)
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Windows/macOS/Linux)
 
 ```bash
-# Clone and setup
 git clone https://github.com/Vedikagupta02/Civic-Assistant.git
 cd Civic-Assistant
 npm install
-
-# Setup Firebase
-# 1. Create Firebase project at https://console.firebase.google.com/
-# 2. Enable Auth (Google + Phone) and Firestore
-# 3. Copy Firebase config to .env file
-
-# Start development
 npm run dev
 ```
+
+Open:
+
+- **App (API + Frontend):** http://localhost:5000/
 
 ## 📦 Core Dependencies
 
@@ -32,17 +28,15 @@ npm run dev
 - Firebase Admin SDK
 - Zod (validation)
 
-## 🔑 Environment Variables
+## 🔑 Configuration
+
+- **Firebase config is currently embedded** in `client/src/lib/firebase.ts`.
+- If you want to use your own Firebase project, update the values in that file.
+- Optional environment variables:
 
 ```env
-# Frontend (.env)
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-
-# Backend (.env)
-NODE_ENV=development
 PORT=5000
+NODE_ENV=development
 ```
 
 ## 📞 Delhi Helplines
@@ -87,19 +81,27 @@ server/
 ✅ Location Detection  
 ✅ Photo Upload  
 ✅ Responsive Design  
+✅ Community Forum (inside User Dashboard)  
+✅ Admin Dashboard (role-based)  
+✅ Worker Dashboard (role-based)  
 
-## 📱 Access Points
+## 📱 Key Routes
 
-- **Frontend:** http://localhost:5173
-- **Backend API:** http://localhost:5000
-- **Firebase Console:** https://console.firebase.google.com
+- **Home (chat):** `http://localhost:5000/`
+- **User Dashboard (My Issues + Forum):** `http://localhost:5000/my-issues`
+- **Admin Dashboard:** `http://localhost:5000/admin?role=admin`
+- **Worker Dashboard:** `http://localhost:5000/worker?role=worker`
+
+Role override is supported for testing:
+
+- **URL:** `?role=admin|worker|user`
+- **LocalStorage:** set `role` to `admin|worker|user`
 
 ## 🐛 Common Issues
 
-1. **Firebase Permission Denied:** Check security rules
-2. **Issues Not Showing:** Verify Firestore indexes
-3. **Category Always "General":** Check useEffect in ReportModal
-4. **Location Not Working:** Enable browser geolocation
+1. **Port 5000 already in use (EADDRINUSE):** stop the other process using port 5000, then run `npm run dev` again.
+2. **Firebase Permission Denied:** check Firestore rules.
+3. **Location Not Working:** enable browser geolocation.
 
 ## 📚 Documentation
 
