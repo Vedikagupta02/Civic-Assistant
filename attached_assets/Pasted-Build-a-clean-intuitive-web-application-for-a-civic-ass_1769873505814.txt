@@ -1,0 +1,237 @@
+Build a clean, intuitive web application for a civic assistant called “Nagrik Seva”.
+
+The goal is to create a working prototype that feels more helpful and transparent than existing civic complaint apps, by focusing on clarity, guidance, visibility, and tracking, not just ticket creation.
+
+🔹 CORE PRINCIPLES (IMPORTANT)
+
+This is NOT just a complaint form
+
+This app must explain issues, show impact, and keep them visible
+
+Use simple logic, mock data, and simulated AI
+
+The app should be understandable in under 2 minutes
+
+🔹 TECH REQUIREMENTS
+
+Use HTML, CSS, and Vanilla JavaScript
+
+Mobile-first, responsive design
+
+Soft civic color palette (blue, green, white)
+
+No login/authentication
+
+No backend APIs (use browser memory / localStorage)
+
+Clearly comment code
+
+🔹 MAIN SCREENS & FEATURES
+1️⃣ HOME / CHAT INTERFACE (PRIMARY ENTRY)
+
+Chat-style interface similar to ChatGPT
+
+Header:
+
+App Name: Nagrik Seva
+
+Tagline: “Your everyday civic help partner”
+
+Chat bubbles:
+
+User messages on right
+
+Assistant messages on left
+
+Input field:
+
+Placeholder: “Describe your civic issue…”
+
+Send button
+
+Microphone icon (UI only)
+
+2️⃣ REAL-TIME AI ISSUE UNDERSTANDING (SIMULATED)
+
+When the user submits text like:
+
+“Garbage hasn’t been picked up near my house for 3 days”
+
+The system should:
+
+Detect issue category using keyword rules:
+
+Waste, Water, Air, Transport, Energy
+
+Detect mock location & language
+
+Assistant response must:
+
+Clearly acknowledge the issue
+
+Explain why it matters
+
+Example:
+
+“This looks like a waste management issue.
+Garbage accumulation can spread disease.”
+
+3️⃣ ACTIONABLE GUIDANCE PANEL (KEY DIFFERENTIATOR)
+
+Display a clear guidance card, NOT just a button.
+
+Card sections:
+
+Why this matters
+
+Short explanation of risk
+
+What you can do
+✔ Avoid the area if possible
+✔ Upload a photo (optional)
+✔ Report to the local sanitation department
+
+Who handles this
+
+🏢 Responsible department
+
+📞 Helpline number
+
+📍 Nearest office
+
+Button: Submit Report
+
+4️⃣ REPORT SUBMISSION FLOW
+
+On clicking Submit Report:
+
+Open a modal or new screen with:
+
+Photo upload (mock)
+
+Short note field
+
+Submit button
+
+After submission:
+
+Show confirmation message
+
+Generate mock Issue ID
+
+Display text:
+
+“Report forwarded to local authority via email.”
+
+Button: Track Issue
+
+5️⃣ ISSUE TRACKING DASHBOARD (NOT JUST A TICKET)
+
+Screen title: My Issues
+
+Each issue card must show:
+
+Issue type
+
+Area
+
+Days unresolved
+
+Number of people affected
+
+Visual status timeline:
+
+🟡 Reported
+
+🔵 Forwarded
+
+🟠 In Progress
+
+🟢 Resolved
+
+Add button:
+
+“Simulate Status Update”
+
+6️⃣ PUBLIC VISIBILITY DASHBOARD (USP – WHAT COMPETITORS DON’T HAVE)
+
+Screen title: Area Issues Overview
+
+Show:
+
+Grouped issues by area
+
+Labels such as:
+
+“12 people affected”
+
+“Unresolved for 5 days”
+
+Add a simple heatmap simulation:
+
+Use colored blocks/circles:
+
+🔴 High unresolved issues
+
+🟡 Medium
+
+🟢 Low
+
+Display message:
+
+“Issues remain visible until resolved.”
+
+7️⃣ SMART FOLLOW-UP & REMINDERS
+
+Add simulation controls:
+
+Button: “Simulate 3 days passed”
+
+On click:
+
+Show reminder notification:
+
+“This issue is still unresolved. You may follow up.”
+
+🔹 FUNCTIONAL LOGIC
+
+Use JavaScript to:
+
+Classify issues using keywords
+
+Store issues in arrays or localStorage
+
+Group issues by area & type
+
+Track time unresolved
+
+Update UI dynamically
+
+🔹 WHY THIS APP IS BETTER THAN COMPETITORS (MUST REFLECT IN UI)
+
+Shows context before action
+
+Explains why the issue matters
+
+Makes problems visible to everyone
+
+Does not silently close issues
+
+Remains useful even if authorities don’t respond
+
+🔹 FINAL REQUIREMENT
+
+The prototype must clearly demonstrate that Nagrik Seva focuses on visibility and understanding, not just complaint submission.
+
+A judge should immediately see:
+
+Clear guidance
+
+Honest tracking
+
+Public accountability
+
+Real-world feasibility
+
+End the app with this line displayed somewhere clearly:
+“We don’t promise faster fixes. We promise that problems won’t be silently ignored.”
