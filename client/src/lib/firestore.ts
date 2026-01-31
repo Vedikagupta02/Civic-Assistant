@@ -30,6 +30,9 @@ export interface FirestoreIssue {
   updates: IssueUpdate[];
   lat?: number;
   lng?: number;
+  // Assignment (optional)
+  assignedWorkerId?: string;
+  assignedWorkerName?: string;
 }
 
 export interface IssueUpdate {

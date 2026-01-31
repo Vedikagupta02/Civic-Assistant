@@ -10,6 +10,9 @@ import { formatDistanceToNow } from "date-fns";
 import { MapPin, ArrowRight, RefreshCw, Calendar, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { AuthDialog } from "@/components/auth/AuthDialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useForum } from "@/hooks/use-forum";
+import type { FirestoreIssue } from "@/lib/firestore";
 
 export default function MyIssues() {
   const { user } = useAuth();
@@ -17,9 +20,15 @@ export default function MyIssues() {
   const simulateUpdate = useSimulateFireStoreUpdate();
   const [showFollowUp, setShowFollowUp] = useState(false);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'issues' | 'forum'>('issues');
+  const latestArea = issues?.[0]?.location as string | undefined;
+  const [forumArea, setForumArea] = useState<string | undefined>(latestArea);
+  const { posts, createPost, addComment, upvote } = useForum(forumArea);
+  const [newPost, setNewPost] = useState({ title: "", description: "", category: "Waste" });
+  const [commentText, setCommentText] = useState<Record<string, string>>({});
 
   // Sort by newest first
-  const sortedIssues = issues?.sort((a, b) => 
+  const sortedIssues = (issues as FirestoreIssue[] | undefined)?.sort((a: FirestoreIssue, b: FirestoreIssue) => 
     b.createdAt.toMillis() - a.createdAt.toMillis()
   );
 
@@ -76,22 +85,29 @@ export default function MyIssues() {
           </motion.div>
         )}
 
-        <div className="mb-8 mt-12 md:mt-0 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">My Issues</h1>
-            <p className="text-muted-foreground mt-2">Track the progress of your civic complaints in real-time.</p>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={simulateDays}
-            className="bg-white hover:bg-primary/5 border-primary/20 text-primary font-bold shadow-sm"
-          >
-            Simulate 3 Days Passed
-          </Button>
-        </div>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+          <TabsList>
+            <TabsTrigger value="issues">My Issues</TabsTrigger>
+            <TabsTrigger value="forum">Community Forum</TabsTrigger>
+          </TabsList>
 
-        {isLoading ? (
+          <TabsContent value="issues">
+            <div className="mb-8 mt-12 md:mt-4 flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-display font-bold text-foreground">My Issues</h1>
+                <p className="text-muted-foreground mt-2">Track the progress of your civic complaints in real-time.</p>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={simulateDays}
+                className="bg-white hover:bg-primary/5 border-primary/20 text-primary font-bold shadow-sm"
+              >
+                Simulate 3 Days Passed
+              </Button>
+            </div>
+
+            {isLoading ? (
           <div className="grid gap-6 md:grid-cols-2">
             {[1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-64 w-full rounded-2xl" />
@@ -180,6 +196,117 @@ export default function MyIssues() {
             ))}
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="forum">
+            <div className="mt-6 space-y-4">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-display font-bold">Community Forum</h2>
+                  <p className="text-muted-foreground text-sm">Area-based discussion of civic issues.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    className="border rounded-md px-2 py-1 text-sm bg-white"
+                    placeholder="Area (e.g., MG Road)"
+                    value={forumArea || ''}
+                    onChange={(e) => setForumArea(e.target.value)}
+                  />
+                  <select
+                    className="border rounded-md px-2 py-1 text-sm bg-white"
+                    value={newPost.category}
+                    onChange={(e) => setNewPost({ ...newPost, category: e.target.value })}
+                  >
+                    {['Waste','Water','Air','Roads','Noise','Other'].map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <Card className="bg-white border-border/60">
+                <CardContent className="p-4 space-y-2">
+                  <input
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    placeholder="Post title"
+                    value={newPost.title}
+                    onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
+                  />
+                  <textarea
+                    className="w-full border rounded-md px-3 py-2 text-sm"
+                    placeholder="Describe the issue"
+                    rows={3}
+                    value={newPost.description}
+                    onChange={(e) => setNewPost({ ...newPost, description: e.target.value })}
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      className="text-sm"
+                      onClick={() => {
+                        if (!forumArea) return;
+                        if (!newPost.title.trim()) return;
+                        createPost({ title: newPost.title, description: newPost.description, category: newPost.category, area: forumArea });
+                        setNewPost({ title: "", description: "", category: newPost.category });
+                      }}
+                    >
+                      Post
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="space-y-3">
+                {posts.map((p) => (
+                  <Card key={p.id} className="bg-white border-border/60">
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold truncate">{p.title}</div>
+                        <div className="text-xs text-muted-foreground">{new Date(p.createdAt).toLocaleString()}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">{p.area} • {p.category}</div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="text-sm">{p.description}</div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" className="text-xs" onClick={() => upvote(p.id)}>▲ Support ({p.upvotes || 0})</Button>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold">Comments</div>
+                        {(p.comments || []).map(c => (
+                          <div key={c.id} className="text-xs bg-muted/30 rounded-md px-2 py-1">{c.text}</div>
+                        ))}
+                        <div className="flex items-center gap-2">
+                          <input
+                            className="flex-1 border rounded-md px-2 py-1 text-xs bg-white"
+                            placeholder="Add a comment"
+                            value={commentText[p.id] || ''}
+                            onChange={(e) => setCommentText({ ...commentText, [p.id]: e.target.value })}
+                          />
+                          <Button
+                            className="text-xs"
+                            onClick={() => {
+                              const txt = (commentText[p.id] || '').trim();
+                              if (!txt) return;
+                              addComment(p.id, txt);
+                              setCommentText({ ...commentText, [p.id]: '' });
+                            }}
+                          >
+                            Comment
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {posts.length === 0 && (
+                  <Card>
+                    <CardContent className="p-6 text-center text-sm text-muted-foreground">No posts yet for this area.</CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
       
       <AuthDialog 

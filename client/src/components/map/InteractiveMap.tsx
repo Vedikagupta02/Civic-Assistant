@@ -156,6 +156,9 @@ export function InteractiveMap({
         mapRefInstance.current.remove();
         mapRefInstance.current = null;
       }
+      // Clear markers and reset readiness
+      markersRef.current = [];
+      setMapReady(false);
     };
   }, [centerLat, centerLng, zoom]);
 
@@ -188,9 +191,12 @@ export function InteractiveMap({
         
         const color = getMarkerColor(issue.category, issue.daysUnresolved);
         
+        // Re-check map instance is still available (component could unmount while awaiting)
+        const mapInst = mapRefInstance.current;
+        if (!mapInst) return null;
         const marker = L.marker([coords.lat, coords.lng], {
           icon: createCustomIcon(color, issue.category)
-        }).addTo(mapRefInstance.current!);
+        }).addTo(mapInst);
 
         // Add popup
         const popupContent = `
@@ -215,21 +221,24 @@ export function InteractiveMap({
       
       console.log('Total markers created:', markers.filter(m => m !== null).length);
       
-      // Add valid markers to the map and markers array
-      markers.forEach(marker => {
-        if (marker) {
-          markersRef.current.push(marker);
-        }
-      });
+      // Add valid markers to the markers array if map still exists
+      if (mapRefInstance.current) {
+        markers.forEach(marker => {
+          if (marker) {
+            markersRef.current.push(marker);
+          }
+        });
+      }
     };
 
     addMarkers();
 
     // Add user location marker
-    if (userLocation) {
+    if (userLocation && mapRefInstance.current) {
+      const mapInst2 = mapRefInstance.current;
       const userMarker = L.marker([userLocation.lat, userLocation.lng], {
         icon: createUserIcon()
-      }).addTo(mapRefInstance.current!);
+      }).addTo(mapInst2);
 
       const userPopupContent = `
         <div style="min-width: 150px;">
@@ -242,7 +251,9 @@ export function InteractiveMap({
       `;
       
       userMarker.bindPopup(userPopupContent);
-      markersRef.current.push(userMarker);
+      if (mapRefInstance.current) {
+        markersRef.current.push(userMarker);
+      }
     }
 
     // Fit map to show all markers
