@@ -42,47 +42,18 @@ export function InteractiveMap({
   const markersRef = useRef<L.Marker[]>([]);
   const [mapReady, setMapReady] = useState(false);
 
-  // Mock coordinates for demonstration (in real app, these would come from geocoding)
-  const getMockCoordinates = (location: string) => {
-    const mockCoords: Record<string, { lat: number; lng: number }> = {
-      // Delhi
-      "MG Road, Block A": { lat: 28.6139, lng: 77.2090 },
-      "Sector 4 Park": { lat: 28.5355, lng: 77.3910 },
-      "Market Street": { lat: 28.6519, lng: 77.2315 },
-      "Central Mall Area": { lat: 28.5672, lng: 77.2100 },
-      "Main Highway Exit": { lat: 28.6448, lng: 77.2167 },
-      
-      // Mumbai
-      "Marine Drive": { lat: 18.9440, lng: 72.8196 },
-      "Bandra West": { lat: 19.0596, lng: 72.8295 },
-      "Andheri East": { lat: 19.1136, lng: 72.8697 },
-      
-      // Bangalore
-      "Koramangala": { lat: 12.9279, lng: 77.6271 },
-      "Indiranagar": { lat: 12.9784, lng: 77.6408 },
-      "Whitefield": { lat: 12.9698, lng: 77.7499 },
-      
-      // Chennai
-      "T Nagar": { lat: 13.0409, lng: 80.2337 },
-      "Anna Nagar": { lat: 13.0870, lng: 80.2128 },
-      
-      // Kolkata
-      "Park Street": { lat: 22.5586, lng: 88.3526 },
-      "Salt Lake": { lat: 22.5808, lng: 88.4161 },
-      
-      // Hyderabad
-      "Banjara Hills": { lat: 17.4165, lng: 78.4497 },
-      "HITEC City": { lat: 17.4459, lng: 78.3767 },
-      
-      // Pune
-      "Koregaon Park": { lat: 18.5314, lng: 73.8446 },
-      "Hinjewadi": { lat: 18.5913, lng: 73.7389 },
-    };
+  // Get coordinates for issue - use actual coordinates if available, otherwise skip
+  const getIssueCoordinates = (issue: Issue) => {
+    // Use actual coordinates if they exist and are valid
+    if (issue.lat && issue.lng && 
+        issue.lat >= -90 && issue.lat <= 90 && 
+        issue.lng >= -180 && issue.lng <= 180 &&
+        (issue.lat !== 0 || issue.lng !== 0)) {
+      return { lat: issue.lat, lng: issue.lng };
+    }
     
-    return mockCoords[location] || {
-      lat: centerLat + (Math.random() - 0.5) * 10, // Larger spread for India
-      lng: centerLng + (Math.random() - 0.5) * 10
-    };
+    // Return null if no valid coordinates - marker will be skipped
+    return null;
   };
 
   const getMarkerColor = (category: string, daysUnresolved?: number | null) => {
@@ -189,7 +160,13 @@ export function InteractiveMap({
 
     // Add issue markers
     issues.forEach(issue => {
-      const coords = getMockCoordinates(issue.location);
+      const coords = getIssueCoordinates(issue);
+      
+      // Skip markers without valid coordinates
+      if (!coords) {
+        return;
+      }
+      
       const color = getMarkerColor(issue.category, issue.daysUnresolved);
       
       const marker = L.marker([coords.lat, coords.lng], {

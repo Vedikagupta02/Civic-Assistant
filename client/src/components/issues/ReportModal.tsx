@@ -25,6 +25,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Camera, MapPin } from "lucide-react";
 import { LocationDetector } from "@/components/map/LocationDetector";
 import { AuthDialog } from "@/components/auth/AuthDialog";
+import { geocodeArea, isValidCoordinates } from "@/lib/geocoding";
 
 interface ReportModalProps {
   open: boolean;
@@ -88,30 +89,67 @@ export function ReportModal({
     }
   };
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) {
       setIsAuthDialogOpen(true);
       return;
     }
 
-    createIssue.mutate({
-      description: values.description,
-      category: values.category,
-      location: values.location,
-      status: "Pending",
-      affectedCount: values.affectedCount,
-      updates: [{
+    try {
+      // Geocode the location string to get coordinates
+      const geocodedLocation = await geocodeArea(values.location);
+      
+      let issueData: any = {
+        description: values.description,
+        category: values.category,
+        location: values.location,
         status: "Pending",
-        date: new Date().toISOString(),
-        comment: "Issue reported"
-      }]
-    }, {
-      onSuccess: () => {
-        onOpenChange(false);
-        form.reset();
-        setPhotoPreview(null);
+        affectedCount: values.affectedCount,
+        updates: [{
+          status: "Pending",
+          date: new Date().toISOString(),
+          comment: "Issue reported"
+        }]
+      };
+
+      // Only add coordinates if geocoding was successful and coordinates are valid
+      if (geocodedLocation.success && isValidCoordinates(geocodedLocation.lat, geocodedLocation.lng)) {
+        issueData.lat = geocodedLocation.lat;
+        issueData.lng = geocodedLocation.lng;
+      } else {
+        console.warn('Geocoding failed or invalid coordinates for location:', values.location);
+        // Issue will be created without coordinates (marker won't show on map)
       }
-    });
+
+      createIssue.mutate(issueData, {
+        onSuccess: () => {
+          onOpenChange(false);
+          form.reset();
+          setPhotoPreview(null);
+        }
+      });
+    } catch (error) {
+      console.error('Error creating issue:', error);
+      // Still create the issue even if geocoding fails
+      createIssue.mutate({
+        description: values.description,
+        category: values.category,
+        location: values.location,
+        status: "Pending",
+        affectedCount: values.affectedCount,
+        updates: [{
+          status: "Pending",
+          date: new Date().toISOString(),
+          comment: "Issue reported"
+        }]
+      }, {
+        onSuccess: () => {
+          onOpenChange(false);
+          form.reset();
+          setPhotoPreview(null);
+        }
+      });
+    }
   };
 
   return (
