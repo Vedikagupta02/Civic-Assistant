@@ -132,9 +132,13 @@ export default function AreaOverview() {
                 All
               </Button>
             </div>
-            <div className="text-sm font-medium bg-white px-3 py-1.5 rounded-lg border shadow-sm">
-              Area Code: <span className="text-primary font-bold">Indiranagar (560038)</span>
-            </div>
+            {userLocation && (
+              <div className="text-sm font-medium bg-white px-3 py-1.5 rounded-lg border shadow-sm">
+                Your Location: <span className="text-primary font-bold">
+                  {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -55,12 +55,22 @@ export function ReportModal({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      category: prefilledCategory || "General",
-      description: prefilledDescription || "",
+      category: "General",
+      description: "",
       location: "",
       affectedCount: 1,
     },
   });
+
+  // Update form values when prefilled data changes
+  useEffect(() => {
+    if (prefilledCategory) {
+      form.setValue("category", prefilledCategory);
+    }
+    if (prefilledDescription) {
+      form.setValue("description", prefilledDescription);
+    }
+  }, [prefilledCategory, prefilledDescription, form]);
 
   const handleUserLocationDetected = (location: { lat: number; lng: number; address: string }) => {
     setDetectedLocation(location.address);
