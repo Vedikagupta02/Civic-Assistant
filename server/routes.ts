@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import type { Server } from "http";
-import { storage } from "./storage";
+import { getHelplineInfo } from "./delhi-helplines.js";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { storage } from "./storage";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -76,50 +77,55 @@ export async function registerRoutes(
     const lowerText = text.toLowerCase();
 
     let category = "General";
-    let department = "Civic Help Center";
+    let department = "Delhi Government";
     let importance = "Important for community well-being.";
-    let helpline = "1800-CIVIC-HELP";
+    let helpline = "1076";
     let actions = ["Provide clear details", "Upload a photo if possible"];
     let riskLevel: 'low' | 'medium' | 'high' = 'low';
     let advice = "Your feedback helps improve our city services.";
 
     if (lowerText.match(/garbage|waste|trash|dump|smell|dirty|clean/)) {
       category = "Waste";
-      department = "Sanitation Department";
+      const helplineInfo = getHelplineInfo(category);
+      department = helplineInfo.authority;
       importance = "Garbage accumulation can spread disease and attract pests.";
-      helpline = "1800-WASTE-MGT";
+      helpline = helplineInfo.helpline;
       actions = ["Avoid the area if possible", "Report to local sanitation", "Take a photo"];
       riskLevel = 'medium';
       advice = "Proper waste management is key to urban hygiene. Avoid physical contact with waste.";
     } else if (lowerText.match(/water|leak|pipe|sewage|flood|supply|drain/)) {
       category = "Water";
-      department = "Water Board (Jal Board)";
+      const helplineInfo = getHelplineInfo(category);
+      department = helplineInfo.authority;
       importance = "Water leaks waste resources and can cause structural damage.";
-      helpline = "1800-WATER-FIX";
+      helpline = helplineInfo.helpline;
       actions = ["Close main valve if possible", "Do not drink contaminated water"];
       riskLevel = 'high';
       advice = "Standing water is a breeding ground for mosquitoes. Report leaks immediately to save water.";
     } else if (lowerText.match(/air|smoke|pollution|dust|burn|fumes/)) {
       category = "Air";
-      department = "Pollution Control Board";
+      const helplineInfo = getHelplineInfo(category);
+      department = helplineInfo.authority;
       importance = "Poor air quality affects respiratory health.";
-      helpline = "1800-AIR-CARE";
+      helpline = helplineInfo.helpline;
       actions = ["Wear a mask", "Keep windows closed"];
       riskLevel = 'high';
       advice = "High pollution levels detected. Vulnerable groups should stay indoors.";
     } else if (lowerText.match(/road|pothole|traffic|bus|transport|street|signal|light/)) {
       category = "Transport";
-      department = "Roads & Transport Authority";
+      const helplineInfo = getHelplineInfo(category);
+      department = helplineInfo.authority;
       importance = "Damaged roads cause accidents and traffic delays.";
-      helpline = "1800-ROAD-SAFE";
+      helpline = helplineInfo.helpline;
       actions = ["Drive slowly", "Report exact location"];
       riskLevel = 'medium';
       advice = "Road safety is a shared responsibility. Alert others to the hazard.";
     } else if (lowerText.match(/energy|power|electric|outage|pole|wire|shock/)) {
       category = "Energy";
-      department = "Electricity Department";
+      const helplineInfo = getHelplineInfo(category);
+      department = helplineInfo.authority;
       importance = "Exposed wires or outages can be dangerous.";
-      helpline = "1800-POWER-OFF";
+      helpline = helplineInfo.helpline;
       actions = ["Stay away from wires", "Report immediately"];
       riskLevel = 'high';
       advice = "Electrical hazards can be fatal. Do not attempt to fix wires yourself.";

@@ -20,9 +20,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { useCreateIssue } from "@/hooks/use-issues";
-import { insertIssueSchema } from "@shared/schema";
+import { useCreateFireStoreIssue } from "@/hooks/use-firestore-issues";
+import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Camera, MapPin } from "lucide-react";
+import { LocationDetector } from "@/components/map/LocationDetector";
+import { AuthDialog } from "@/components/auth/AuthDialog";
 
 interface ReportModalProps {
   open: boolean;
@@ -31,9 +33,11 @@ interface ReportModalProps {
   prefilledDescription?: string;
 }
 
-const formSchema = insertIssueSchema.extend({
+const formSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
+  category: z.string().min(1, "Category is required"),
   location: z.string().min(5, "Location is required"),
+  affectedCount: z.number().min(1, "Affected count must be at least 1"),
 });
 
 export function ReportModal({ 
@@ -42,22 +46,27 @@ export function ReportModal({
   prefilledCategory, 
   prefilledDescription 
 }: ReportModalProps) {
-  const createIssue = useCreateIssue();
+  const createIssue = useCreateFireStoreIssue();
+  const { user } = useAuth();
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [detectedLocation, setDetectedLocation] = useState<string>("");
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       category: prefilledCategory || "General",
       description: prefilledDescription || "",
-      location: "123 Civic Center Drive (Auto-detected)",
-      status: "Reported",
+      location: "",
       affectedCount: 1,
-      daysUnresolved: 0
     },
   });
 
-  // Handle mock photo upload
+  const handleUserLocationDetected = (location: { lat: number; lng: number; address: string }) => {
+    setDetectedLocation(location.address);
+    form.setValue("location", location.address);
+  };
+
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -70,7 +79,23 @@ export function ReportModal({
   };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    createIssue.mutate(values, {
+    if (!user) {
+      setIsAuthDialogOpen(true);
+      return;
+    }
+
+    createIssue.mutate({
+      description: values.description,
+      category: values.category,
+      location: values.location,
+      status: "Pending",
+      affectedCount: values.affectedCount,
+      updates: [{
+        status: "Pending",
+        date: new Date().toISOString(),
+        comment: "Issue reported"
+      }]
+    }, {
       onSuccess: () => {
         onOpenChange(false);
         form.reset();
@@ -137,9 +162,15 @@ export function ReportModal({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Location</FormLabel>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input {...field} className="pl-9" placeholder="Enter location..." />
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input {...field} className="pl-9" placeholder="Enter location or detect automatically..." />
+                    </div>
+                    <LocationDetector 
+                      onLocationDetected={handleUserLocationDetected}
+                      disabled={createIssue.isPending}
+                    />
                   </div>
                   <FormMessage />
                 </FormItem>
@@ -186,6 +217,11 @@ export function ReportModal({
           </form>
         </Form>
       </DialogContent>
+      
+      <AuthDialog 
+        isOpen={isAuthDialogOpen} 
+        onClose={() => setIsAuthDialogOpen(false)} 
+      />
     </Dialog>
   );
 }

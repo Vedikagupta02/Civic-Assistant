@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Sparkles, AlertCircle, Phone, ArrowRight, Bot, User } from "lucide-react";
+import { Send, Sparkles, AlertCircle, Phone, ArrowRight, Bot, User, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAnalyzeText } from "@/hooks/use-analyze";
@@ -11,6 +11,7 @@ import { useCreateMessage, useMessages } from "@/hooks/use-messages";
 import { ReportModal } from "@/components/issues/ReportModal";
 import { type AnalyzeResponse } from "@shared/schema";
 import { Navbar } from "@/components/layout/Navbar";
+import { VoiceRecorder, useVoiceSynthesis } from "@/components/voice/VoiceRecorder";
 
 // Local type for chat history display
 type ChatItem = {
@@ -33,9 +34,12 @@ export default function Home() {
     },
   ]);
   const [reportModalData, setReportModalData] = useState<{ category: string; description: string } | null>(null);
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState('en-IN');
   
   const bottomRef = useRef<HTMLDivElement>(null);
   const analyze = useAnalyzeText();
+  const { speak, cancel, speaking } = useVoiceSynthesis();
   
   // Use React Hook Form for input
   const form = useForm<z.infer<typeof chatSchema>>({
@@ -50,7 +54,11 @@ export default function Home() {
   const onSubmit = (values: z.infer<typeof chatSchema>) => {
     const userMsg = values.message;
     form.reset();
-    
+    setIsVoiceListening(false);
+    submitMessage(userMsg);
+  };
+
+  const submitMessage = (userMsg: string) => {
     // Add user message to UI immediately
     const newHistory: ChatItem[] = [
       ...chatHistory,
@@ -61,27 +69,89 @@ export default function Home() {
     // Call analyze API
     analyze.mutate({ text: userMsg }, {
       onSuccess: (data) => {
+        const assistantMessage = "I've analyzed your issue. Here is the guidance:";
         setChatHistory(prev => [
           ...prev,
           { 
             id: (Date.now() + 1).toString(), 
             role: "assistant", 
-            content: "I've analyzed your issue. Here is the guidance:",
+            content: assistantMessage,
             analysis: data 
           }
         ]);
       },
       onError: () => {
+        const errorMessage = "I'm having trouble connecting to the server. Please try again.";
         setChatHistory(prev => [
           ...prev,
           { 
             id: (Date.now() + 1).toString(), 
             role: "assistant", 
-            content: "I'm having trouble connecting to the server. Please try again." 
+            content: errorMessage 
           }
         ]);
       }
     });
+  };
+
+  const handleVoiceTranscript = (transcript: string) => {
+    // Set the transcript in the form field but don't auto-submit
+    form.setValue("message", transcript);
+    // Don't set isVoiceListening to false here - let user control when to stop
+  };
+
+  const toggleVoiceListening = () => {
+    if (isVoiceListening) {
+      // Stop listening
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.stop();
+      }
+      setIsVoiceListening(false);
+    } else {
+      // Start listening
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        
+        recognition.lang = selectedLanguage;
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        
+        recognition.onresult = (event: any) => {
+          let transcript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+          }
+          if (transcript.trim()) {
+            form.setValue("message", transcript);
+          }
+        };
+        
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setIsVoiceListening(false);
+        };
+        
+        recognition.onend = () => {
+          setIsVoiceListening(false);
+        };
+        
+        recognition.start();
+        setIsVoiceListening(true);
+      } else {
+        alert('Speech recognition is not supported in your browser. Please try Chrome or Edge.');
+      }
+    }
+  };
+
+  const speakMessage = (text: string, language: string = 'en-IN') => {
+    if (speaking) {
+      cancel();
+    } else {
+      speak(text, language);
+    }
   };
 
   const handleOpenReport = (analysis: AnalyzeResponse, userOriginalText: string) => {
@@ -92,7 +162,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30 pb-20 md:pb-0 pt-16 md:pt-20">
+    <div className="min-h-screen bg-muted/30 pb-20 md:pb-8 pt-16 md:pt-24">
       <Navbar />
       
       {/* Header for Mobile */}
@@ -123,14 +193,37 @@ export default function Home() {
                 
                 <div className={`space-y-2 max-w-[85%] ${msg.role === "user" ? "items-end flex flex-col" : ""}`}>
                   {/* Text Bubble */}
-                  <div
-                    className={`px-5 py-3.5 rounded-2xl text-sm md:text-base leading-relaxed shadow-sm
-                      ${msg.role === "user" 
-                        ? "bg-primary text-primary-foreground rounded-tr-none" 
-                        : "bg-white border border-border/50 text-foreground rounded-tl-none"
-                      }`}
-                  >
-                    {msg.content}
+                  <div className="relative">
+                    <div
+                      className={`px-5 py-3.5 rounded-2xl text-sm md:text-base leading-relaxed shadow-sm
+                        ${msg.role === "user" 
+                          ? "bg-primary text-primary-foreground rounded-tr-none" 
+                          : "bg-white border border-border/50 text-foreground rounded-tl-none"
+                        }`}
+                    >
+                      {msg.content}
+                    </div>
+                    
+                    {/* Speak Button for AI Messages */}
+                    {msg.role === "assistant" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => speakMessage(msg.content)}
+                        className={`absolute -bottom-2 -right-2 h-6 w-6 rounded-full shadow-md transition-colors ${
+                          speaking && msg.content === chatHistory[chatHistory.length - 1]?.content
+                            ? "bg-red-500 hover:bg-red-600 text-white"
+                            : "bg-primary hover:bg-primary/90 text-white"
+                        }`}
+                      >
+                        {speaking && msg.content === chatHistory[chatHistory.length - 1]?.content ? (
+                          <VolumeX className="w-3 h-3" />
+                        ) : (
+                          <Volume2 className="w-3 h-3" />
+                        )}
+                      </Button>
+                    )}
                   </div>
 
                   {/* Structured Analysis Card */}
@@ -177,14 +270,17 @@ export default function Home() {
                         
                         <div className="flex items-center justify-between text-sm bg-muted/50 p-3 rounded-lg">
                           <div>
-                            <p className="text-xs text-muted-foreground uppercase font-bold">Who handles this</p>
+                            <p className="text-xs text-muted-foreground uppercase font-bold">Responsible Authority</p>
                             <p className="font-medium text-foreground">{msg.analysis.department}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-xs text-muted-foreground uppercase font-bold">Helpline</p>
-                            <div className="flex items-center gap-1 font-mono text-primary font-bold">
-                              <Phone size={12} />
-                              {msg.analysis.helpline}
+                            <p className="text-xs text-muted-foreground uppercase font-bold">Official Helpline</p>
+                            <div className="flex flex-col items-end gap-1">
+                              <div className="flex items-center gap-1 font-mono text-primary font-bold">
+                                <Phone size={12} />
+                                {msg.analysis.helpline}
+                              </div>
+                              <p className="text-xs text-muted-foreground italic">Delhi Government</p>
                             </div>
                           </div>
                         </div>
@@ -238,20 +334,60 @@ export default function Home() {
             <Input 
               {...form.register("message")}
               placeholder="Describe your issue (e.g., 'Broken street light at Main St')..."
-              className="h-14 pl-6 pr-14 rounded-full border-border/60 shadow-lg bg-white focus-visible:ring-primary/20 text-base"
+              className="h-14 pl-6 pr-36 rounded-full border-border/60 shadow-lg bg-white focus-visible:ring-primary/20 text-base"
               autoComplete="off"
+              disabled={analyze.isPending}
             />
-            <Button 
-              type="submit" 
-              size="icon"
-              disabled={!form.watch("message") || analyze.isPending}
-              className="absolute right-2 h-10 w-10 rounded-full bg-primary hover:bg-primary/90 shadow-md transition-all hover:scale-105"
-            >
-              <Send size={18} className="ml-0.5" />
-            </Button>
+            
+            {/* Voice and Send Buttons */}
+            <div className="absolute right-2 flex items-center gap-1">
+              {/* Language Selector (compact) */}
+              <select
+                value={selectedLanguage}
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+                disabled={analyze.isPending}
+                className="h-8 px-2 text-xs border rounded bg-white"
+              >
+                <option value="en-IN">EN</option>
+                <option value="hi-IN">HI</option>
+                <option value="bn-IN">BN</option>
+                <option value="ta-IN">TA</option>
+                <option value="te-IN">TE</option>
+              </select>
+              
+              {/* Microphone Button */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={toggleVoiceListening}
+                disabled={analyze.isPending}
+                className={`h-10 w-10 transition-all duration-200 ${
+                  isVoiceListening 
+                    ? "bg-red-500 hover:bg-red-600 text-white animate-pulse" 
+                    : "hover:bg-primary hover:text-primary-foreground text-muted-foreground"
+                }`}
+              >
+                {isVoiceListening ? (
+                  <MicOff className="w-4 h-4" />
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
+              </Button>
+              
+              {/* Send Button */}
+              <Button 
+                type="submit" 
+                size="icon"
+                disabled={!form.watch("message") || analyze.isPending}
+                className="h-10 w-10 rounded-full bg-primary hover:bg-primary/90 shadow-md transition-all hover:scale-105"
+              >
+                <Send size={18} className="ml-0.5" />
+              </Button>
+            </div>
           </form>
           <p className="text-center text-xs text-muted-foreground mt-2">
-            AI can make mistakes. Please verify important information.
+            AI can make mistakes. Please verify important information. You can also use voice input in multiple Indian languages.
           </p>
         </div>
 

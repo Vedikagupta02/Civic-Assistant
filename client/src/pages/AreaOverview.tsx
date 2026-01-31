@@ -1,27 +1,90 @@
+import { useState, useMemo } from "react";
 import { Navbar } from "@/components/layout/Navbar";
-import { useIssues } from "@/hooks/use-issues";
+import { useAllIssues, useIssuesStats } from "@/hooks/use-firestore-issues";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart, Activity, AlertTriangle, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BarChart, Activity, AlertTriangle, CheckCircle, Calendar, Clock, MapPin, Map } from "lucide-react";
+import { InteractiveMap } from "@/components/map/InteractiveMap";
+import { LocationDetector } from "@/components/map/LocationDetector";
 
 export default function AreaOverview() {
-  const { data: issues, isLoading } = useIssues();
+  const { data: issues, isLoading } = useAllIssues();
+  const { data: stats } = useIssuesStats();
+  const [timeWindow, setTimeWindow] = useState<'24h' | '7d' | '30d' | 'all'>('7d');
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Simple stats calculation
-  const totalIssues = issues?.length || 0;
-  const resolvedIssues = issues?.filter(i => i.status === "Resolved").length || 0;
-  const inProgressIssues = issues?.filter(i => i.status === "In Progress" || i.status === "Forwarded").length || 0;
-  const reportedIssues = issues?.filter(i => i.status === "Reported").length || 0;
+  // Filter issues by time window
+  const filteredIssues = useMemo(() => {
+    if (!issues) return [];
+    
+    const now = new Date();
+    const filterDate = new Date();
+    
+    switch (timeWindow) {
+      case '24h':
+        filterDate.setHours(now.getHours() - 24);
+        break;
+      case '7d':
+        filterDate.setDate(now.getDate() - 7);
+        break;
+      case '30d':
+        filterDate.setDate(now.getDate() - 30);
+        break;
+      case 'all':
+        return issues;
+      default:
+        return issues;
+    }
+    
+    return issues.filter(issue => 
+      issue.createdAt.toDate() >= filterDate
+    );
+  }, [issues, timeWindow]);
 
-  // Group by category for a simple heatmap/grid
-  const categoryCounts = issues?.reduce((acc, issue) => {
-    acc[issue.category] = (acc[issue.category] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  // Calculate statistics
+  const totalIssues = stats?.total || 0;
+  const resolvedIssues = stats?.resolved || 0;
+  const inProgressIssues = stats?.inProgress || 0;
+  const pendingIssues = stats?.pending || 0;
+
+  // Group by category for aggregation
+  const categoryCounts = useMemo(() => {
+    return filteredIssues?.reduce((acc, issue) => {
+      acc[issue.category] = (acc[issue.category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>) || {};
+  }, [filteredIssues]);
+
+  // Group by area for aggregation
+  const areaCounts = useMemo(() => {
+    return filteredIssues?.reduce((acc, issue) => {
+      acc[issue.location] = (acc[issue.location] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>) || {};
+  }, [filteredIssues]);
+
+  // Group by area and category for heatmap
+  const areaCategoryMatrix = useMemo(() => {
+    const matrix: Record<string, Record<string, number>> = {};
+    
+    filteredIssues?.forEach(issue => {
+      if (!matrix[issue.location]) {
+        matrix[issue.location] = {};
+      }
+      matrix[issue.location][issue.category] = (matrix[issue.location][issue.category] || 0) + 1;
+    });
+    
+    return matrix;
+  }, [filteredIssues]);
+
+  const handleUserLocationDetected = (location: { lat: number; lng: number; address: string }) => {
+    setUserLocation({ lat: location.lat, lng: location.lng });
+  };
 
   return (
-    <div className="min-h-screen bg-muted/30 pb-24 md:pb-12 pt-4 md:pt-20">
+    <div className="min-h-screen bg-muted/30 pb-24 md:pb-12 pt-4 md:pt-24">
       <Navbar />
       
       <div className="max-w-5xl mx-auto px-4">
@@ -30,23 +93,71 @@ export default function AreaOverview() {
             <h1 className="text-3xl font-display font-bold text-foreground">Area Overview</h1>
             <p className="text-muted-foreground mt-2">Civic health dashboard for your neighborhood.</p>
           </div>
-          <div className="text-sm font-medium bg-white px-3 py-1.5 rounded-lg border shadow-sm">
-            Area Code: <span className="text-primary font-bold">Indiranagar (560038)</span>
+          <div className="flex flex-col gap-2">
+            {/* Time Window Selector */}
+            <div className="flex gap-1">
+              <Button
+                variant={timeWindow === '24h' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeWindow('24h')}
+                className="text-xs"
+              >
+                <Clock className="w-3 h-3 mr-1" />
+                24H
+              </Button>
+              <Button
+                variant={timeWindow === '7d' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeWindow('7d')}
+                className="text-xs"
+              >
+                <Calendar className="w-3 h-3 mr-1" />
+                7D
+              </Button>
+              <Button
+                variant={timeWindow === '30d' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeWindow('30d')}
+                className="text-xs"
+              >
+                <Calendar className="w-3 h-3 mr-1" />
+                30D
+              </Button>
+              <Button
+                variant={timeWindow === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTimeWindow('all')}
+                className="text-xs"
+              >
+                All
+              </Button>
+            </div>
+            <div className="text-sm font-medium bg-white px-3 py-1.5 rounded-lg border shadow-sm">
+              Area Code: <span className="text-primary font-bold">Indiranagar (560038)</span>
+            </div>
           </div>
         </div>
 
         {/* Heatmap Section (USP) */}
         <div className="mb-10">
-          <h2 className="font-display text-xl font-bold mb-4 flex items-center gap-2">
-            <span className="w-2 h-6 bg-primary rounded-full"></span>
-            Area Health Heatmap
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-xl font-bold flex items-center gap-2">
+              <span className="w-2 h-6 bg-primary rounded-full"></span>
+              Area Health Heatmap
+            </h2>
+            <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
+              {timeWindow === '24h' && 'Last 24 hours'}
+              {timeWindow === '7d' && 'Last 7 days'}
+              {timeWindow === '30d' && 'Last 30 days'}
+              {timeWindow === 'all' && 'All time'}
+            </div>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
             ) : (
               (() => {
-                const areaStats = issues?.reduce((acc, issue) => {
+                const areaStats = filteredIssues?.reduce((acc, issue) => {
                   if (!acc[issue.location]) acc[issue.location] = { count: 0, maxDays: 0 };
                   if (issue.status !== "Resolved") {
                     acc[issue.location].count++;
@@ -56,7 +167,7 @@ export default function AreaOverview() {
                 }, {} as Record<string, { count: number; maxDays: number }>);
 
                 // Ensure pre-seeded areas show up if no issues reported yet
-                const areas = Array.from(new Set([...(issues?.map(i => i.location) || []), "MG Road, Block A", "Sector 4 Park", "Market Street", "Central Mall Area"]));
+                const areas = Array.from(new Set([...(filteredIssues?.map(i => i.location) || []), "MG Road, Block A", "Sector 4 Park", "Market Street", "Central Mall Area"]));
 
                 return areas.map((areaName) => {
                   const stats = areaStats?.[areaName] || { count: 0, maxDays: 0 };
@@ -87,6 +198,32 @@ export default function AreaOverview() {
           </p>
         </div>
 
+        {/* Interactive Map with Heatmap */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-xl font-bold flex items-center gap-2">
+              <Map className="w-5 h-5 text-primary" />
+              Interactive Area Map
+            </h2>
+            <LocationDetector 
+              onLocationDetected={handleUserLocationDetected}
+              disabled={isLoading}
+            />
+          </div>
+          <Card>
+            <CardContent className="p-6">
+              {isLoading ? (
+                <Skeleton className="h-96 w-full" />
+              ) : (
+                <InteractiveMap 
+                  issues={filteredIssues || []}
+                  userLocation={userLocation}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatsCard 
@@ -112,11 +249,69 @@ export default function AreaOverview() {
           />
           <StatsCard 
             title="Needs Attention" 
-            value={reportedIssues} 
+            value={pendingIssues} 
             icon={AlertTriangle} 
             color="text-orange-600" 
             bg="bg-orange-100" 
           />
+        </div>
+
+        {/* Issues by Area - Count Display */}
+        <div className="mb-8">
+          <h2 className="font-display text-xl font-bold mb-4 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-primary" />
+            Issues by Area
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(areaCounts).map(([area, count]) => (
+              <Card key={area} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Area</p>
+                      <p className="font-semibold text-foreground truncate">{area}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-primary">{count}</p>
+                      <p className="text-xs text-muted-foreground">issues</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {Object.keys(areaCounts).length === 0 && (
+              <Card>
+                <CardContent className="p-4 text-center text-muted-foreground">
+                  No issues reported in selected time window
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        {/* Issues by Category - Count Display */}
+        <div className="mb-8">
+          <h2 className="font-display text-xl font-bold mb-4 flex items-center gap-2">
+            <BarChart className="w-5 h-5 text-primary" />
+            Issues by Category
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {Object.entries(categoryCounts).map(([category, count]) => (
+              <Card key={category} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-4 text-center">
+                  <p className="text-lg font-bold text-primary">{count}</p>
+                  <p className="text-sm text-muted-foreground">{category}</p>
+                </CardContent>
+              </Card>
+            ))}
+            {Object.keys(categoryCounts).length === 0 && (
+              <Card className="col-span-full">
+                <CardContent className="p-4 text-center text-muted-foreground">
+                  No issues reported in selected time window
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
@@ -135,7 +330,7 @@ export default function AreaOverview() {
                 </div>
               ) : (
                 <div className="divide-y divide-border/50">
-                  {issues?.slice(0, 10).map((issue) => (
+                  {filteredIssues?.slice(0, 10).map((issue) => (
                     <div key={issue.id} className="p-4 hover:bg-muted/30 transition-colors flex items-center justify-between gap-4">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">
@@ -147,9 +342,9 @@ export default function AreaOverview() {
                       <StatusBadge status={issue.status} className="shrink-0" />
                     </div>
                   ))}
-                  {issues?.length === 0 && (
+                  {filteredIssues?.length === 0 && (
                     <div className="p-8 text-center text-muted-foreground text-sm">
-                      No recent activity in this area.
+                      No recent activity in selected time window.
                     </div>
                   )}
                 </div>

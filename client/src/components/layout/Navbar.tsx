@@ -1,9 +1,15 @@
 import { Link, useLocation } from "wouter";
-import { Home, ListChecks, Map, AlertCircle } from "lucide-react";
+import { Home, ListChecks, Map, AlertCircle, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { AuthDialog } from "@/components/auth/AuthDialog";
 
 export function Navbar() {
   const [location] = useLocation();
+  const { user, userProfile, logout } = useAuth();
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
 
   const navItems = [
     { href: "/", label: "Chat", icon: Home },
@@ -45,12 +51,68 @@ export function Navbar() {
             );
           })}
         </div>
+
+        {/* User Authentication */}
+        <div className="hidden md:flex items-center gap-2">
+          {user && userProfile ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg">
+                {userProfile.photoURL ? (
+                  <img 
+                    src={userProfile.photoURL} 
+                    alt={userProfile.displayName || 'User'} 
+                    className="w-6 h-6 rounded-full"
+                  />
+                ) : (
+                  <User className="w-4 h-4 text-muted-foreground" />
+                )}
+                <span className="text-sm font-medium truncate max-w-[120px]">
+                  {userProfile.displayName || userProfile.email || userProfile.phoneNumber}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => setIsAuthDialogOpen(true)}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Sign In
+            </Button>
+          )}
+        </div>
       </div>
+      
+      {/* Mobile Auth Button */}
+      {!user && (
+        <div className="md:hidden px-4 pb-2">
+          <Button
+            size="sm"
+            onClick={() => setIsAuthDialogOpen(true)}
+            className="w-full bg-primary hover:bg-primary/90"
+          >
+            Sign In
+          </Button>
+        </div>
+      )}
       <div className="hidden md:block max-w-5xl mx-auto px-4 pb-2">
         <p className="text-[10px] text-muted-foreground text-center italic border-t border-border/30 pt-2">
           "We don't promise faster fixes. We promise that problems won't be silently ignored."
         </p>
       </div>
+      
+      <AuthDialog 
+        isOpen={isAuthDialogOpen} 
+        onClose={() => setIsAuthDialogOpen(false)} 
+      />
     </nav>
   );
 }

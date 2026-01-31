@@ -1,37 +1,64 @@
 import { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/Navbar";
-import { useIssues, useSimulateUpdate } from "@/hooks/use-issues";
+import { useUserIssues, useSimulateFireStoreUpdate } from "@/hooks/use-firestore-issues";
+import { useAuth } from "@/contexts/AuthContext";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
-import { MapPin, ArrowRight, RefreshCw, Calendar } from "lucide-react";
+import { MapPin, ArrowRight, RefreshCw, Calendar, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
+import { AuthDialog } from "@/components/auth/AuthDialog";
 
 export default function MyIssues() {
-  const { data: issues, isLoading } = useIssues();
-  const simulateUpdate = useSimulateUpdate();
+  const { user } = useAuth();
+  const { data: issues, isLoading } = useUserIssues();
+  const simulateUpdate = useSimulateFireStoreUpdate();
   const [showFollowUp, setShowFollowUp] = useState(false);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
 
   // Sort by newest first
   const sortedIssues = issues?.sort((a, b) => 
-    new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
+    b.createdAt.toMillis() - a.createdAt.toMillis()
   );
 
   const simulateDays = async () => {
-    await fetch('/api/simulate-days', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ days: 3 }),
-    });
+    // This is a legacy function - we'll keep it for demo purposes
     setShowFollowUp(true);
-    // Reload data (hack for this turn)
-    window.location.reload();
   };
 
+  // Show auth dialog if user is not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-muted/30 pb-24 md:pb-12 pt-4 md:pt-24">
+        <Navbar />
+        
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">
+              <Calendar className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-bold font-display mb-2">Sign In Required</h3>
+            <p className="text-muted-foreground max-w-sm mb-6">
+              Please sign in to view and manage your civic complaints.
+            </p>
+            <Button onClick={() => setIsAuthDialogOpen(true)}>
+              Sign In to Continue
+            </Button>
+          </div>
+        </div>
+        
+        <AuthDialog 
+          isOpen={isAuthDialogOpen} 
+          onClose={() => setIsAuthDialogOpen(false)} 
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-muted/30 pb-24 md:pb-12 pt-4 md:pt-20">
+    <div className="min-h-screen bg-muted/30 pb-24 md:pb-12 pt-4 md:pt-24">
       <Navbar />
       
       <div className="max-w-4xl mx-auto px-4">
@@ -101,7 +128,7 @@ export default function MyIssues() {
                         {issue.category}
                       </div>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {issue.createdAt && formatDistanceToNow(new Date(issue.createdAt), { addSuffix: true })}
+                        {issue.createdAt && formatDistanceToNow(issue.createdAt.toDate(), { addSuffix: true })}
                       </span>
                     </div>
                     <div className="flex justify-between items-start gap-4">
@@ -114,7 +141,7 @@ export default function MyIssues() {
                   <CardContent className="space-y-4">
                     <div className="flex items-center text-sm text-muted-foreground gap-2">
                       <MapPin className="w-4 h-4 shrink-0 text-primary/70" />
-                      <span className="truncate">{issue.location}</span>
+                      <span className="truncate">{issue.location || 'Unknown Location'}</span>
                     </div>
                     
                     <div className="flex items-center justify-between pt-2 border-t border-border/50">
@@ -126,7 +153,7 @@ export default function MyIssues() {
                         <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-1">Impact</span>
                         <div className="flex flex-col items-end">
                           <span className="text-sm font-bold text-foreground">{issue.affectedCount} Citizens</span>
-                          <span className="text-[10px] text-muted-foreground font-medium">Unresolved: {issue.daysUnresolved} Days</span>
+                          <span className="text-[10px] text-muted-foreground font-medium">Unresolved: {issue.daysUnresolved || 0} Days</span>
                         </div>
                       </div>
                     </div>
@@ -137,8 +164,8 @@ export default function MyIssues() {
                       variant="outline" 
                       size="sm" 
                       className="text-xs w-full hover:bg-white hover:text-primary transition-colors"
-                      onClick={() => simulateUpdate.mutate(issue.id)}
-                      disabled={simulateUpdate.isPending || issue.status === "Resolved"}
+                      onClick={() => issue.id && simulateUpdate.mutate(issue.id)}
+                      disabled={simulateUpdate.isPending || issue.status === "Resolved" || !issue.id}
                     >
                       {simulateUpdate.isPending ? (
                         <RefreshCw className="w-3.5 h-3.5 mr-2 animate-spin" />
@@ -154,6 +181,11 @@ export default function MyIssues() {
           </div>
         )}
       </div>
+      
+      <AuthDialog 
+        isOpen={isAuthDialogOpen} 
+        onClose={() => setIsAuthDialogOpen(false)} 
+      />
     </div>
   );
 }
