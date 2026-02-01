@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useToast } from "@/hooks/use-toast";
 import type { FirestoreIssue } from "@/lib/firestore";
 
 const WORKERS = [
@@ -16,6 +17,7 @@ const WORKERS = [
 export default function AdminDashboard() {
   const { data: issues, isLoading } = useAllIssues();
   const updateIssue = useUpdateFireStoreIssue();
+  const { toast } = useToast();
 
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -39,6 +41,10 @@ export default function AdminDashboard() {
     await updateIssue.mutateAsync({
       id: issueId,
       data: { status: "In Progress", assignedWorkerId: w.id, assignedWorkerName: w.name },
+    });
+    toast({
+      title: "Worker assigned",
+      description: `${w.name} has been assigned to this issue.`,
     });
   };
 

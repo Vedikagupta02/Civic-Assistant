@@ -12,7 +12,7 @@ export function Navbar() {
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
 
   const navItems = [
-    { href: "/", label: "Chat", icon: Home },
+    { href: "/assistant", label: "Chat", icon: Home },
     { href: "/my-issues", label: "My Issues", icon: ListChecks },
     { href: "/area", label: "Area Overview", icon: Map },
   ];

@@ -5,7 +5,7 @@ import type { FirestoreIssue } from "@/lib/firestore";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { MapPin } from "lucide-react";
+import { CheckCircle2, MapPin } from "lucide-react";
 
 // Derive a mock workerId from email for demo
 function getWorkerId(): string | null {
@@ -42,6 +42,12 @@ export default function WorkerDashboard() {
   // Simulate live location moving slightly
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const [mockTracking, setMockTracking] = useState({
+    enRoute: true,
+    onSite: false,
+    workInProgress: false,
+    completed: false,
+  });
 
   useEffect(() => {
     const base = { lat: 28.6139, lng: 77.2090 };
@@ -69,6 +75,10 @@ export default function WorkerDashboard() {
     await addUpdate.mutateAsync({ id: issueId, status: "Resolved", comment: "Work completed" });
   };
 
+  const toggleTracking = (key: keyof typeof mockTracking) => {
+    setMockTracking((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
     <div className="min-h-screen bg-muted/30 pb-24 md:pb-12 pt-4 md:pt-24">
       <Navbar />
@@ -88,6 +98,39 @@ export default function WorkerDashboard() {
               <span>
                 {location ? `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}` : "Locating..."}
               </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="text-sm text-muted-foreground">Mock Tracking (Worker)</div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {[
+                { key: "enRoute", label: "En route to site" },
+                { key: "onSite", label: "Arrived on site" },
+                { key: "workInProgress", label: "Work in progress" },
+                { key: "completed", label: "Task completed (worker confirmation)" },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => toggleTracking(item.key as keyof typeof mockTracking)}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                    mockTracking[item.key as keyof typeof mockTracking]
+                      ? "border-primary/40 bg-primary/5 text-foreground"
+                      : "border-border/60 text-muted-foreground"
+                  }`}
+                >
+                  <CheckCircle2 className={`h-4 w-4 ${mockTracking[item.key as keyof typeof mockTracking] ? "text-primary" : "text-muted-foreground"}`} />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              This is a mock tracking panel for demo purposes only. It does not affect backend data.
             </div>
           </CardContent>
         </Card>
